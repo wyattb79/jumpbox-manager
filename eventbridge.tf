@@ -6,8 +6,13 @@ resource "aws_cloudwatch_event_rule" "this" {
     source = ["aws.ec2"]
     detail-type = ["EC2 Instance State-change Notification"]
     detail = {
-      eventSource = ["ec2.amazonaws.com"]
-      eventName = [""]
+      "state" = ["running"]
     }
   })
+}
+
+resource "aws_cloudwatch_event_target" "this" {
+  rule = aws_cloudwatch_event_rule.this.name
+  target_id = "send-to-sqs"
+  arn = aws_sqs_queue.this.arn
 }
