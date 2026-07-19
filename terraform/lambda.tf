@@ -10,6 +10,12 @@ resource "aws_lambda_function" "my_lambda" {
   role = aws_iam_role.lambda_role.arn
   runtime = var.python_runtime
   handler = "jumpbox-manager.handler"
+
+  environment {
+    variables = {
+      JUMPBOX_TAG = var.jumpbox_tag
+    }
+  }
 }
 
 resource "aws_lambda_event_source_mapping" "sqs_trigger" {

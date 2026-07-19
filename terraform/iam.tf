@@ -26,10 +26,17 @@ resource "aws_iam_policy" "lambda_sqs_policy" {
         Action = [
           "sqs:ReceiveMessage",
           "sqs:DeleteMessage",
-          "sqs:GetQueueAttributes"
+          "sqs:GetQueueAttributes",
         ]
         Resource = aws_sqs_queue.this.arn
-      }
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeInstances"
+        ]
+        Resource = "*"
+      },
     ]
   })
 }
