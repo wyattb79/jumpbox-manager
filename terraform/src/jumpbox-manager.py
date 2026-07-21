@@ -1,42 +1,48 @@
 import json
 import boto3
+import logging
+import os
 
 def handler(event, context):
-  ec2_client = boto3.client('ec2')
+  ec2_client = boto3.client('ec2', region_name='us-east-1')
+  logger = logging.getLogger()
+
+  log_level = os.environ.get("LAMBDA_LOG_LEVEL", "INFO").upper()
+  logger.setLevel(logging.getLevelName(log_level))
 
   for record in event['Records']:
     message_body = json.loads(record['body'])
 
     instance_id = message_body['detail']['instance-id']
 
-    print(f"Checking instance: {instance_id}")
+    logger.info(f"Checking instance: {instance_id}")
 
     try:
-      print("1 debug")
+      logger.info("1 debug")
       response = ec2_client.describe_instances(InstanceIds=[instance_id])
-
-      print("2 debug")
+      logger.info("{response}")
+      logger.info("2 debug")
       reservations = response.get('Reservations', [])
 
-      print("3 debug")
+      logger.info("3 debug")
       if not reservations:
         return "Instance not found"
 
-      print("4 debug")
+      logger.info("4 debug")
       instances = reservations[0].get('Instance', [])
 
-      print("5 debug")
+      logger.info("5 debug")
       if not instances:
         return "Instance not found"
 
-      print("6 debug")
+      logger.info("6 debug")
       tags = instances[0].get('Tags', [])
-      print("7debug")
+      logger.info("7debug")
       jumpbox_tag = os.environ.get('JUMPBOX_TAG')
-      print("8debug")
+      logger.info("8debug")
       label_key = next((tag['Key'] for tag in tags if tag['Key'] == jumpbox_tag), None)
 
-      print("Found the tag")
+      logger.info("Found the tag")
 
       return {
         'statusCode': 200,
@@ -44,13 +50,13 @@ def handler(event, context):
       }
 
     except Exception as e:
-      print("debug")
+      logger.info("debug")
       return {
         'statusCode': 500,
         'body': f'Error fetching instance tags: {str(e)}'
       }
 
-    print(f"Body content: {body}")
+    logger.info(f"Body content: {body}")
 
   return {
     'statusCode': 200,
