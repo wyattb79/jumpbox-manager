@@ -8,7 +8,3 @@ variable "jumpbox_tag" {
   description = "ec2 tag key to determine the ec2 is an ephemeral jumpbox"
 }
 
-variable "vpc_id" {
-  type = string
-  description = "VPC the lambda will run in"
-}

@@ -1,6 +1,11 @@
 resource "aws_sqs_queue" "this" {
   name = "jumpbox-started"
   message_retention_seconds = 3600 
+
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.jumpbox-manager-dlq.arn
+    maxReceiveCount = 5
+  })
 }
 
 resource "aws_sqs_queue_policy" "allow_eventbridge" {
@@ -25,3 +30,9 @@ resource "aws_sqs_queue_policy" "allow_eventbridge" {
     }]
   })
 }
+
+resource "aws_sqs_queue" "jumpbox-manager-dlq" {
+  name = "jumpbox-manager-dlq"
+  message_retention_seconds = 3600
+}
+

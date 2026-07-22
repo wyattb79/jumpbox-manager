@@ -18,31 +18,24 @@ def handler(event, context):
     logger.info(f"Checking instance: {instance_id}")
 
     try:
-      logger.info("1 debug")
       response = ec2_client.describe_instances(InstanceIds=[instance_id])
-      logger.info("{response}")
-      logger.info("2 debug")
       reservations = response.get('Reservations', [])
 
-      logger.info("3 debug")
       if not reservations:
         return "Instance not found"
 
-      logger.info("4 debug")
-      instances = reservations[0].get('Instance', [])
+      instances = reservations[0].get('Instances', [])
 
-      logger.info("5 debug")
       if not instances:
         return "Instance not found"
 
-      logger.info("6 debug")
       tags = instances[0].get('Tags', [])
-      logger.info("7debug")
       jumpbox_tag = os.environ.get('JUMPBOX_TAG')
-      logger.info("8debug")
       label_key = next((tag['Key'] for tag in tags if tag['Key'] == jumpbox_tag), None)
+      logger.info("Ephemeral Jumpbox tag found")
 
-      logger.info("Found the tag")
+      sg_id = instances[0].get('SecurityGroups', [])    
+      logger.info(f"Security group is: {sg_id}")
 
       return {
         'statusCode': 200,
@@ -50,13 +43,11 @@ def handler(event, context):
       }
 
     except Exception as e:
-      logger.info("debug")
       return {
         'statusCode': 500,
         'body': f'Error fetching instance tags: {str(e)}'
       }
 
-    logger.info(f"Body content: {body}")
 
   return {
     'statusCode': 200,
