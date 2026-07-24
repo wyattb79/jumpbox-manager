@@ -30,12 +30,19 @@ def handler(event, context):
         return "Instance not found"
 
       tags = instances[0].get('Tags', [])
+      logger.info(instances[0].keys())
       jumpbox_tag = os.environ.get('JUMPBOX_TAG')
       label_key = next((tag['Key'] for tag in tags if tag['Key'] == jumpbox_tag), None)
       logger.info("Ephemeral Jumpbox tag found")
 
+      resource_arn = next((tag['Value'] for tag in tags if tag['Key'] == 'Jumpbox_Resource'), None)
+      logger.info(f"Resource arn is {resource_arn}")
+
       sg_id = instances[0].get('SecurityGroups', [])    
       logger.info(f"Security group is: {sg_id}")
+
+      resource_type = resource_arn.split(':')[2].capitalize()
+      
 
       return {
         'statusCode': 200,
