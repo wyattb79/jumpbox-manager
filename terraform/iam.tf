@@ -27,6 +27,7 @@ resource "aws_iam_policy" "lambda_sqs_policy" {
           "sqs:ReceiveMessage",
           "sqs:DeleteMessage",
           "sqs:GetQueueAttributes",
+          "ec2:AuthorizeSecurityGroupIngress"
         ]
         Resource = aws_sqs_queue.this.arn
       },
