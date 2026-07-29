@@ -27,16 +27,23 @@ resource "aws_iam_policy" "lambda_sqs_policy" {
           "sqs:ReceiveMessage",
           "sqs:DeleteMessage",
           "sqs:GetQueueAttributes",
-          "ec2:AuthorizeSecurityGroupIngress"
         ]
         Resource = aws_sqs_queue.this.arn
       },
       {
         Effect = "Allow"
         Action = [
+          "ec2:AuthorizeSecurityGroupIngress",
+          "ec2:RevokeSecurityGroupIngress"
+        ]
+        Resource = "arn:aws:ec2:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:security-group/*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "ec2:DescribeInstances"
         ]
-        Resource = "*"
+        Resource = "arn:aws:ec2:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:instance/*"
       },
     ]
   })

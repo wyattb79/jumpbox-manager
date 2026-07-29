@@ -6,7 +6,7 @@ resource "aws_cloudwatch_event_rule" "this" {
     source = ["aws.ec2"]
     detail-type = ["EC2 Instance State-change Notification"]
     detail = {
-      "state" = ["running"]
+      "state" = ["running", "terminated"]
     }
   })
 }

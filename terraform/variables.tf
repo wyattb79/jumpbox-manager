@@ -12,3 +12,8 @@ variable "contact_email" {
   type = string
   description = "email to contact when DLQ receives a message"
 }
+
+variable "backend_bucket" {
+  type = string
+  description = "Name of the bucket that stores tfstate"
+}
