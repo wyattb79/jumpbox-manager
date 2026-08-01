@@ -8,13 +8,12 @@ dynamodb = boto3.resource('dynamodb')
 TABLE_NAME = 'jumpbox_access'
 table = dynamodb.Table(TABLE_NAME)
 region = os.environ.get('REGION')
+ec2_client = boto3.client('ec2', region_name=region)
 
 def handler(event, context):
   logger = logging.getLogger()
   log_level = os.environ.get("LAMBDA_LOG_LEVEL", "INFO").upper()
   logger.setLevel(logging.getLevelName(log_level))
-
-  ec2_client = boto3.client('ec2', region_name='us-east-1')
 
   for record in event['Records']:
     message_body = json.loads(record['body'])
@@ -103,6 +102,7 @@ def handler(event, context):
 
 
     except Exception as e:
+      logger.error(f"NameError encountered: {str(e)}", exc_info=True)
       error_code = e.response['Error']['Code']
       print(f"Error Code: {error_code}")
       error_message = e.response['Error']['Message']

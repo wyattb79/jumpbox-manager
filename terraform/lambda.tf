@@ -15,7 +15,8 @@ resource "aws_lambda_function" "jumpbox_manager" {
 
   environment {
     variables = {
-      JUMPBOX_TAG = var.jumpbox_tag
+      JUMPBOX_TAG = var.jumpbox_tag,
+      REGION = data.aws_region.current.name
     }
   }
 }
