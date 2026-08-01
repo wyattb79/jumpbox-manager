@@ -43,7 +43,18 @@ resource "aws_iam_policy" "lambda_sqs_policy" {
         Action = [
           "ec2:DescribeInstances"
         ]
-        Resource = "arn:aws:ec2:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:instance/*"
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:PutItem",
+          "dynamodb:Query",
+          "dynamodb:DeleteItem"
+        ]
+        Resource: [ "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/jumpbox_access",
+        "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/jumpbox_access/index/*"
+        ]
       },
     ]
   })
