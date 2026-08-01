@@ -120,10 +120,10 @@ def resources_exist(ec2_arn) -> bool:
   logger.info("Called func")
   try:
     logger.info("Tru1")
-    instance_id = ec2_arn.split(':')[5].split('/')[1]
+    instance_id = ec2_arn.split(':')[5].split('/')[-1]
     logger.info("Tru2")
     response = ec2_client.describe_instances(InstanceIds=[instance_id])
     logger.info(response)
   except Exception:
-    return false
-  return true
+    return False
+  return True
