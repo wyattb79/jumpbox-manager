@@ -2,10 +2,12 @@ import json
 import boto3
 import logging
 import os
+from boto3.dynamodb.conditions import Key
 
 dynamodb = boto3.resource('dynamodb')
 TABLE_NAME = 'jumpbox_access'
 table = dynamodb.Table(TABLE_NAME)
+region = os.environ.get('REGION')
 
 def handler(event, context):
   logger = logging.getLogger()
@@ -29,6 +31,7 @@ def handler(event, context):
         # get the resource the jumpbox is requesting to access
         resource_arn = next((tag['Value'] for tag in tags if tag['Key'] == 'Jumpbox_Resource'), None)
         logger.info("Checking exist")
+        logger.info(f"Searching for {resource_arn}")
         if not resources_exist(resource_arn):
           return {
             'statusCode': 200,
