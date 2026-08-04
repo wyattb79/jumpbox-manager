@@ -10,10 +10,11 @@ table = dynamodb.Table(TABLE_NAME)
 region = os.environ.get('REGION')
 ec2_client = boto3.client('ec2', region_name=region)
 
+logger = logging.getLogger()
+log_level = os.environ.get("LAMBDA_LOG_LEVEL", "INFO").upper()
+logger.setLevel(logging.getLevelName(log_level))
+
 def handler(event, context):
-  logger = logging.getLogger()
-  log_level = os.environ.get("LAMBDA_LOG_LEVEL", "INFO").upper()
-  logger.setLevel(logging.getLevelName(log_level))
 
   for record in event['Records']:
     message_body = json.loads(record['body'])
@@ -29,14 +30,12 @@ def handler(event, context):
 
         # get the resource the jumpbox is requesting to access
         resource_arn = next((tag['Value'] for tag in tags if tag['Key'] == 'Jumpbox_Resource'), None)
-        logger.info("Checking exist")
-        logger.info(f"Searching for {resource_arn}")
+
         if not resources_exist(resource_arn):
           return {
             'statusCode': 200,
             'body': f'Resource error.  Check your parameters to verify each resource exists'
           }
-        logger.info("Exists")
 
         # get security group
         sg = ec2_client.describe_instances(InstanceIds=[instance_id])['Reservations'][0]['Instances'][0]['SecurityGroups'][0]['GroupId']
@@ -63,7 +62,7 @@ def handler(event, context):
             }
           ]
         )
-        logger.info("Rule added")
+        logger.info("SG Rule added")
         DynamoRow = {
           'InstanceId': remote_instance_id,
           'remote_sg': remote_sg,
@@ -102,12 +101,6 @@ def handler(event, context):
 
 
     except Exception as e:
-      logger.error(f"NameError encountered: {str(e)}", exc_info=True)
-      error_code = e.response['Error']['Code']
-      print(f"Error Code: {error_code}")
-      error_message = e.response['Error']['Message']
-      print(f"Reason: {error_message}")
-
       return {
         'statusCode': 500,
         'body': f'Error adding ingress rule: {str(e)}'
@@ -120,13 +113,10 @@ def handler(event, context):
   }
 
 def resources_exist(ec2_arn) -> bool:
-  logger.info("Called func")
+
   try:
-    logger.info("Tru1")
     instance_id = ec2_arn.split(':')[5].split('/')[-1]
-    logger.info("Tru2")
     response = ec2_client.describe_instances(InstanceIds=[instance_id])
-    logger.info(response)
   except Exception:
     return False
   return True
