@@ -64,7 +64,7 @@ def handler(event, context):
         )
         logger.info("SG Rule added")
         DynamoRow = {
-          'InstanceId': remote_instance_id,
+          'InstanceId': instance_id,
           'remote_sg': remote_sg,
           'sg': sg
         }
