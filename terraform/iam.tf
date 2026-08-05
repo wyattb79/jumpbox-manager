@@ -28,7 +28,7 @@ resource "aws_iam_policy" "lambda_sqs_policy" {
           "sqs:DeleteMessage",
           "sqs:GetQueueAttributes",
         ]
-        Resource = aws_sqs_queue.this.arn
+        Resource = [ aws_sqs_queue.jumpbox_started.arn, aws_sqs_queue.jumpbox_terminated.arn ]
       },
       {
         Effect = "Allow"
