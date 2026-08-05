@@ -22,32 +22,24 @@ def handler(event, context):
       # get tagged instance and verify it exists
       tags = ec2_client.describe_instances(InstanceIds=[instance_id])['Reservations'][0]['Instances'][0]['Tags']
  
-      logger.info("1")
       # get the resource the jumpbox is requesting to access
       resource_arn = next((tag['Value'] for tag in tags if tag['Key'] == 'Jumpbox_Resource'), None)
   
-      logger.info("2")
       if not resources_exist(resource_arn):
         return {
           'statusCode': 200,
           'body': f'Resource error.  Check your parameters to verify each resource exists'
         }
   
-      logger.info("3")
       # get security group
       sg = ec2_client.describe_instances(InstanceIds=[instance_id])['Reservations'][0]['Instances'][0]['SecurityGroups'][0]['GroupId']
   
-      logger.info("4")
       remote_instance_id = resource_arn.split('/')[-1]
-      logger.info("5")
       remote_sg = ec2_client.describe_instances(InstanceIds=[remote_instance_id])['Reservations'][0]['Instances'][0]['SecurityGroups'][0]['GroupId']
-      logger.info("6")
   
       # verify that the newly started instance is a jumpbox
       jumpbox_tag = os.environ.get('JUMPBOX_TAG')
-      logger.info("7")
       label_key = next((tag['Key'] for tag in tags if tag['Key'] == jumpbox_tag), None)
-      logger.info("8")
   
       response = ec2_client.authorize_security_group_ingress(
         GroupId=remote_sg,  
@@ -76,15 +68,10 @@ def handler(event, context):
     'body': json.dumps('Rule added')
   }
   
-  def resources_exist(ec2_arn) -> bool:
-    logger.info("a") 
-    try:
-      logger.info("b") 
-      instance_id = ec2_arn.split(':')[5].split('/')[-1]
-      logger.info("c") 
-      response = ec2_client.describe_instances(InstanceIds=[instance_id])
-      logger.info("d") 
-    except Exception:
-      logger.info("e") 
-      return False
-    return True
+def resources_exist(ec2_arn) -> bool:
+  try:
+    instance_id = ec2_arn.split(':')[5].split('/')[-1]
+    response = ec2_client.describe_instances(InstanceIds=[instance_id])
+  except Exception:
+    return False
+  return True
