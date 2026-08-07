@@ -1,60 +1,46 @@
-data "archive_file" "add_sg_zip" {
-  type = "zip"
-  source_file = "${path.module}/src/add_sg.py"
-  output_path = "${path.module}/src/add_sg.zip"
-}
-
-data "archive_file" "del_sg_zip" {
-  type = "zip"
-  source_file = "${path.module}/src/del_sg.py"
-  output_path = "${path.module}/src/del_sg.zip"
-}
-
-resource "aws_lambda_function" "add_sg" {
-  filename = data.archive_file.add_sg_zip.output_path
+module "lambda_ec2_started" {
+  source = "./modules/lambda-function"
   function_name = "add_sg"
-  role = aws_iam_role.lambda_role.arn
-  runtime = var.python_runtime
-  handler = "add_sg.handler"
+  role = module.lambda_add_ingress_role.role_arn
+  region = data.aws_region.current.region
+  python_runtime = var.python_runtime
 
-  timeout = 30
-
-  environment {
-    variables = {
-      JUMPBOX_TAG = var.jumpbox_tag,
-      REGION = data.aws_region.current.name
-    }
+  lambda_env_vars = {
+    JUMPBOX_TAG = var.jumpbox_tag,
+    REGION = data.aws_region.current.region
   }
+
+  queue_arn = module.ec2_started_queue.queue_arn
 }
 
-resource "aws_lambda_event_source_mapping" "sqs_started_trigger" {
-  event_source_arn = aws_sqs_queue.jumpbox_started.arn
-  function_name = aws_lambda_function.add_sg.arn
-  batch_size = 1
-  enabled = true
-}
-
-resource "aws_lambda_function" "del_sg" {
-  filename = data.archive_file.del_sg_zip.output_path
+module "lambda_ec2_terminated" {
+  source = "./modules/lambda-function"
   function_name = "del_sg"
-  role = aws_iam_role.lambda_role.arn
-  runtime = var.python_runtime
-  handler = "del_sg.handler"
+  role = module.lambda_revoke_ingress_role.role_arn
+  region = data.aws_region.current.region
+  python_runtime = var.python_runtime
 
-  timeout = 30
-
-  environment {
-    variables = {
-      JUMPBOX_TAG = var.jumpbox_tag,
-      REGION = data.aws_region.current.name
-    }
+  lambda_env_vars = {
+    JUMPBOX_TAG = var.jumpbox_tag,
+    REGION = data.aws_region.current.region
   }
+
+  queue_arn = module.ec2_terminated_queue.queue_arn
 }
 
-resource "aws_lambda_event_source_mapping" "sqs_terminated_trigger" {
-  event_source_arn = aws_sqs_queue.jumpbox_terminated.arn
-  function_name = aws_lambda_function.del_sg.arn
-  batch_size = 1
-  enabled = true
+module "lambda_write_dynamo" {
+  source = "./modules/lambda-function"
+  function_name = "write_dynamo"
+  role = module.lambda_add_dynamo_role.role_arn
+  region = data.aws_region.current.region
+  python_runtime = var.python_runtime
+}
+
+module "lambda_delete_dynamo" {
+  source = "./modules/lambda-function"
+  function_name = "delete_dynamo"
+  role = module.lambda_delete_dynamo_role.role_arn
+  region = data.aws_region.current.region
+  python_runtime = var.python_runtime
 }
 

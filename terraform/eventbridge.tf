@@ -1,37 +1,17 @@
-resource "aws_cloudwatch_event_rule" "ec2_created" {
-  name = "capture-ec2-creation"
-  description = "Generate an event for any EC2 created"
-
-  event_pattern = jsonencode({
-    source = ["aws.ec2"]
-    detail-type = ["EC2 Instance State-change Notification"]
-    detail = {
-      "state" = ["running"]
-    }
-  })
+module "ec2_create_event" {
+  source = "./modules/eventbridge-event"
+  rule_name = "ec2-creation"
+  rule_description = "Generate event for EC2 running"
+  ec2_state = "running"
+  queue_arn = module.ec2_started_queue.queue_arn
+  target_id = "EC2-create" 
 }
 
-resource "aws_cloudwatch_event_target" "ec2_started" {
-  rule = aws_cloudwatch_event_rule.ec2_created.name
-  target_id = "send-to-sqs-started"
-  arn = aws_sqs_queue.jumpbox_started.arn
-}
-
-resource "aws_cloudwatch_event_rule" "ec2_terminated" {
-  name = "capture-ec2-termination"
-  description = "Generate an event for any EC2 terminated"
-
-  event_pattern = jsonencode({
-    source = ["aws.ec2"]
-    detail-type = ["EC2 Instance State-change Notification"]
-    detail = {
-      "state" = ["terminated"]
-    }
-  })
-}
-
-resource "aws_cloudwatch_event_target" "ec2_termianted" {
-  rule = aws_cloudwatch_event_rule.ec2_terminated.name
-  target_id = "send-to-sqs-terminated"
-  arn = aws_sqs_queue.jumpbox_terminated.arn
+module "ec2_terminate_event" {
+  source = "./modules/eventbridge-event"
+  rule_name = "ec2-termination"
+  rule_description = "Generate event for EC2 terminated"
+  ec2_state = "terminated"
+  queue_arn = module.ec2_terminated_queue.queue_arn
+  target_id = "EC2-terminate" 
 }

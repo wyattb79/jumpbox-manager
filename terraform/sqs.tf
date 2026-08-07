@@ -1,25 +1,25 @@
-resource "aws_sqs_queue" "jumpbox_started" {
-  name = "jumpbox-started"
-  message_retention_seconds = 3600 
-
-  redrive_policy = jsonencode({
-    deadLetterTargetArn = aws_sqs_queue.jumpbox-manager-created-dlq.arn
-    maxReceiveCount = 5
-  })
+module "ec2_started_queue" {
+  source = "./modules/sqs-queue"
+  queue_name = "ec2_started"
 }
 
-resource "aws_sqs_queue" "jumpbox_terminated" {
-  name = "jumpbox-terminated"
-  message_retention_seconds = 3600 
+module "ec2_terminated_queue" {
+  source = "./modules/sqs-queue"
+  queue_name = "ec2_terminated"
+}
 
-  redrive_policy = jsonencode({
-    deadLetterTargetArn = aws_sqs_queue.jumpbox-manager-terminated-dlq.arn
-    maxReceiveCount = 5
-  })
+module "add_dynamo_queue" {
+  source = "./modules/sqs-queue"
+  queue_name = "add_dynamo"
+}
+
+module "delete_dynamo_queue" {
+  source = "./modules/sqs-queue"
+  queue_name = "delete_dynamo"
 }
 
 resource "aws_sqs_queue_policy" "allow_eventbridge_ec2create" {
-  queue_url = aws_sqs_queue.jumpbox_started.id
+  queue_url = module.ec2_started_queue.queue_arn
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -31,10 +31,10 @@ resource "aws_sqs_queue_policy" "allow_eventbridge_ec2create" {
         Service = "events.amazonaws.com"
       }
       Action = "sqs:SendMessage"
-      Resource = aws_sqs_queue.jumpbox_started.arn
+      Resource = module.ec2_started_queue.queue_arn
       Condition = {
         ArnEquals = {
-          "aws:SourceArn" = aws_cloudwatch_event_rule.ec2_created.arn
+          "aws:SourceArn" = module.ec2_started_queue.queue_arn
         }
       }
     }]
@@ -42,7 +42,7 @@ resource "aws_sqs_queue_policy" "allow_eventbridge_ec2create" {
 }
 
 resource "aws_sqs_queue_policy" "allow_eventbridge_ec2terminate" {
-  queue_url = aws_sqs_queue.jumpbox_terminated.id
+  queue_url = module.ec2_terminated_queue.queue_arn
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -54,22 +54,29 @@ resource "aws_sqs_queue_policy" "allow_eventbridge_ec2terminate" {
         Service = "events.amazonaws.com"
       }
       Action = "sqs:SendMessage"
-      Resource = aws_sqs_queue.jumpbox_terminated.arn
+      Resource = module.ec2_terminated_queue.queue_arn
       Condition = {
         ArnEquals = {
-          "aws:SourceArn" = aws_cloudwatch_event_rule.ec2_terminated.arn
+          "aws:SourceArn" = module.ec2_terminated_queue.queue_arn
         }
       }
     }]
   })
 }
 
-resource "aws_sqs_queue" "jumpbox-manager-created-dlq" {
-  name = "jumpbox-manager-created-dlq"
-  message_retention_seconds = 3600
-}
+resource "aws_sqs_queue_policy" "allow_lambda_write_dynamo" {
+  queue_url = module.add_dynamo_queue.queue_arn
 
-resource "aws_sqs_queue" "jumpbox-manager-terminated-dlq" {
-  name = "jumpbox-manager-terminated-dlq"
-  message_retention_seconds = 3600
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [{
+      Sid = "AllowLambdaWrite"
+      Effect = "Allow"
+      Principal = {
+      }
+      Action = "sqs:SendMessage"
+      Resource = module.add_dynamo_queue.queue_arn
+    }]
+  })
 }
