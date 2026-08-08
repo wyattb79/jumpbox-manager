@@ -8,6 +8,7 @@ module "lambda_ec2_started" {
   lambda_env_vars = {
     JUMPBOX_TAG = var.jumpbox_tag,
     REGION = data.aws_region.current.region
+    queue_url = module.add_dynamo_queue.queue_id
   }
 
   queue_arn = module.ec2_started_queue.queue_arn
@@ -23,6 +24,7 @@ module "lambda_ec2_terminated" {
   lambda_env_vars = {
     JUMPBOX_TAG = var.jumpbox_tag,
     REGION = data.aws_region.current.region
+    queue_url = module.delete_dynamo_queue.queue_id
   }
 
   queue_arn = module.ec2_terminated_queue.queue_arn

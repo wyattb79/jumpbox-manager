@@ -5,6 +5,8 @@ import os
 
 region = os.environ.get('REGION')
 ec2_client = boto3.client('ec2', region_name=region)
+sqs_client = boto3.client('sqs')
+queue_url = os.environ['SQS_QUEUE_URL']
 
 logger = logging.getLogger()
 log_level = os.environ.get("LAMBDA_LOG_LEVEL", "INFO").upper()
@@ -57,6 +59,10 @@ def handler(event, context):
         ]
       )
       logger.info("SG Rule added")
+
+      message_data = {
+
+      }
 
     except Exception as e:
       return {

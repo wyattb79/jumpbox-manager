@@ -64,7 +64,7 @@ resource "aws_iam_policy" "lambda_add_ingress_policy" {
 }
 
 resource "aws_iam_policy" "lambda_revoke_ingress_policy" {
-  name = "lambda-add-ingress"
+  name = "lambda-revoke-ingress"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -97,7 +97,7 @@ resource "aws_iam_policy" "lambda_revoke_ingress_policy" {
 }
 
 resource "aws_iam_policy" "lambda_add_dynamo_policy" {
-  name = "lambda-add-ingress"
+  name = "lambda-add-dynamo"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -133,7 +133,7 @@ resource "aws_iam_policy" "lambda_add_dynamo_policy" {
 }
 
 resource "aws_iam_policy" "lambda_delete_dynamo_policy" {
-  name = "lambda-add-ingress"
+  name = "lambda-delete-dynamo"
 
   policy = jsonencode({
     Version = "2012-10-17"

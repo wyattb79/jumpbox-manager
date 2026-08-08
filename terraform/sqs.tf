@@ -19,7 +19,7 @@ module "delete_dynamo_queue" {
 }
 
 resource "aws_sqs_queue_policy" "allow_eventbridge_ec2create" {
-  queue_url = module.ec2_started_queue.queue_arn
+  queue_url = module.ec2_started_queue.queue_id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -34,7 +34,7 @@ resource "aws_sqs_queue_policy" "allow_eventbridge_ec2create" {
       Resource = module.ec2_started_queue.queue_arn
       Condition = {
         ArnEquals = {
-          "aws:SourceArn" = module.ec2_started_queue.queue_arn
+          "aws:SourceArn" = module.ec2_create_event.event_rule_arn
         }
       }
     }]
@@ -42,7 +42,7 @@ resource "aws_sqs_queue_policy" "allow_eventbridge_ec2create" {
 }
 
 resource "aws_sqs_queue_policy" "allow_eventbridge_ec2terminate" {
-  queue_url = module.ec2_terminated_queue.queue_arn
+  queue_url = module.ec2_terminated_queue.queue_id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -57,7 +57,7 @@ resource "aws_sqs_queue_policy" "allow_eventbridge_ec2terminate" {
       Resource = module.ec2_terminated_queue.queue_arn
       Condition = {
         ArnEquals = {
-          "aws:SourceArn" = module.ec2_terminated_queue.queue_arn
+          "aws:SourceArn" = module.ec2_terminate_event.event_rule_arn
         }
       }
     }]
@@ -65,7 +65,7 @@ resource "aws_sqs_queue_policy" "allow_eventbridge_ec2terminate" {
 }
 
 resource "aws_sqs_queue_policy" "allow_lambda_write_dynamo" {
-  queue_url = module.add_dynamo_queue.queue_arn
+  queue_url = module.add_dynamo_queue.queue_id
 
   policy = jsonencode({
     Version = "2012-10-17"
