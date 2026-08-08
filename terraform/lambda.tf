@@ -36,6 +36,8 @@ module "lambda_write_dynamo" {
   role = module.lambda_add_dynamo_role.role_arn
   region = data.aws_region.current.region
   python_runtime = var.python_runtime
+
+  queue_arn = module.add_dynamo_queue.queue_arn
 }
 
 module "lambda_delete_dynamo" {
@@ -44,5 +46,7 @@ module "lambda_delete_dynamo" {
   role = module.lambda_delete_dynamo_role.role_arn
   region = data.aws_region.current.region
   python_runtime = var.python_runtime
+
+  queue_arn = module.delete_dynamo_queue.queue_arn
 }
 
