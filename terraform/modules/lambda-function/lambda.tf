@@ -18,7 +18,7 @@ resource "aws_lambda_function" "this" {
   }
 }
 
-resource "aws_lambda_event_source_mapping" "sqs_started_trigger" {
+resource "aws_lambda_event_source_mapping" "this" {
   event_source_arn = var.queue_arn
   function_name = aws_lambda_function.this.arn
   batch_size = 1

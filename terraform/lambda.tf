@@ -1,6 +1,6 @@
 module "lambda_ec2_started" {
   source = "./modules/lambda-function"
-  function_name = "add_sg"
+  function_name = "authorize_securitygroup"
   role = module.lambda_add_ingress_role.role_arn
   region = data.aws_region.current.region
   python_runtime = var.python_runtime
@@ -16,7 +16,7 @@ module "lambda_ec2_started" {
 
 module "lambda_ec2_terminated" {
   source = "./modules/lambda-function"
-  function_name = "del_sg"
+  function_name = "revoke_securitygroup"
   role = module.lambda_revoke_ingress_role.role_arn
   region = data.aws_region.current.region
   python_runtime = var.python_runtime
