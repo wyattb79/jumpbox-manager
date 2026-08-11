@@ -61,10 +61,23 @@ def handler(event, context):
       logger.info("SG Rule added")
 
       message_data = {
-
+        "instance_id": instance_id,
+        "remote_sg": remote_sg,
+        "jumpbox_sg": sg
       }
 
+      response = sqs_client.send_message(
+        QueueUrl=queue_url,
+        MessageBody = json.dumps(message_data)
+      )
+
+      logger.info("Wrote to Queue")
+
     except Exception as e:
+      error_type = type(e).__name__
+      error_reason = str(e)
+
+      logger.info(f"Type: {error_type} reason: {error_reason}")
       return {
                'statusCode': 500,
                'body': f'Error adding ingress rule: {str(e)}'

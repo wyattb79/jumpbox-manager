@@ -9,7 +9,7 @@ resource "aws_lambda_function" "this" {
   function_name = var.function_name
   role = var.role
   runtime = var.python_runtime
-  handler = "add_sg.handler"
+  handler = "${var.function_name}.handler"
 
   timeout = 30
 

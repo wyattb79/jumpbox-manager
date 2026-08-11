@@ -7,3 +7,8 @@ output "queue_id" {
   description = "URL of the SQS queue"
   value       = aws_sqs_queue.this.id
 }
+
+output "queue_name" {
+  description = "URL of the SQS queue"
+  value       = aws_sqs_queue.this.name
+}

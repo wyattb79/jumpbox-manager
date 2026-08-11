@@ -59,6 +59,13 @@ resource "aws_iam_policy" "lambda_add_ingress_policy" {
         ]
         Resource = "*"
       },
+      {
+        Effect = "Allow"
+        Action = [
+          "sqs:SendMessage"
+        ]
+        Resource = "arn:aws:sqs:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:${module.add_dynamo_queue.queue_name}"
+      },
     ]
   })
 }

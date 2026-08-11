@@ -10,6 +10,7 @@ ec2_client = boto3.client('ec2', region_name=region)
 logger = logging.getLogger()
 log_level = os.environ.get("LAMBDA_LOG_LEVEL", "INFO").upper()
 logger.setLevel(logging.getLevelName(log_level))
+queue_url = os.environ['SQS_QUEUE_URL']
 
 def handler(event, context):
 
@@ -30,22 +31,6 @@ def handler(event, context):
       logger.info(f"{Item}")
       logger.info(f"{response}")
 
-      response = ec2_client.revoke_security_group_ingress(
-        GroupId=remote_sg,  
-        IpPermissions=[
-          {
-            'IpProtocol': 'tcp',
-            'FromPort': 22,
-            'ToPort': 22,
-            'UserIdGroupPairs': [
-              {
-                'GroupId': sg
-              }
-            ]
-          }
-        ]
-      )
-      logger.info("Rule deleted")
 
     except Exception as e:
       return {

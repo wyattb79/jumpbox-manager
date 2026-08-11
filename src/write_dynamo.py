@@ -15,16 +15,17 @@ logger.setLevel(logging.getLevelName(log_level))
 def handler(event, context):
 
   for record in event['Records']:
+    logger.info("Got message")
     message_body = json.loads(record['body'])
-    instance_id = message_body['InstanceId']
+    instance_id = message_body['instance_id']
     remote_sg = message_body['remote_sg']
-    sg = message_body['sg']
+    jumpbox_sg = message_body['jumpbox_sg']
 
     try:
       DynamoRow = {
        'InstanceId': instance_id,
        'remote_sg': remote_sg,
-       'sg': sg
+       'sg': jumpbox_sg
       }
       table.put_item(Item=DynamoRow)
       logger.info("Record written to DynamoDB")
