@@ -1,96 +1,145 @@
 import json
-import boto3
 import logging
 import os
+import boto3
+from botocore.exceptions import ClientError
 
-region = os.environ.get('REGION')
-ec2_client = boto3.client('ec2', region_name=region)
-sqs_client = boto3.client('sqs')
-queue_url = os.environ['SQS_QUEUE_URL']
+REGION = os.environ.get('AWS_REGION')
+EC2_CLIENT = boto3.client('ec2', region_name=REGION)
+SQS_CLIENT = boto3.client('sqs', region_name=REGION)
 
-logger = logging.getLogger()
-log_level = os.environ.get("LAMBDA_LOG_LEVEL", "INFO").upper()
-logger.setLevel(logging.getLevelName(log_level))
+QUEUE_URL = os.environ['SQS_QUEUE_URL']
+JUMPBOX_TAG = os.environ.get('JUMPBOX_TAG', 'Jumpbox')
+
+LOGGER = logging.getLogger()
+LOG_LEVEL = os.environ.get("LAMBDA_LOG_LEVEL", "INFO").upper()
+LOGGER.setLevel(LOG_LEVEL)
+
 
 def handler(event, context):
+  failed_message_ids = []
 
-  for record in event['Records']:
-    message_body = json.loads(record['body'])
-    instance_id = message_body['detail']['instance-id']
-
-    logger.info(f"Instance {instance_id} created")
-
+  for record in event.get('Records', []):
+    message_id = record.get('messageId')
     try:
-      # get tagged instance and verify it exists
-      tags = ec2_client.describe_instances(InstanceIds=[instance_id])['Reservations'][0]['Instances'][0]['Tags']
- 
-      # get the resource the jumpbox is requesting to access
-      resource_arn = next((tag['Value'] for tag in tags if tag['Key'] == 'Jumpbox_Resource'), None)
-  
-      if not resources_exist(resource_arn):
-        return {
-          'statusCode': 200,
-          'body': f'Resource error.  Check your parameters to verify each resource exists'
-        }
-  
-      # get security group
-      sg = ec2_client.describe_instances(InstanceIds=[instance_id])['Reservations'][0]['Instances'][0]['SecurityGroups'][0]['GroupId']
-  
-      remote_instance_id = resource_arn.split('/')[-1]
-      remote_sg = ec2_client.describe_instances(InstanceIds=[remote_instance_id])['Reservations'][0]['Instances'][0]['SecurityGroups'][0]['GroupId']
-  
-      # verify that the newly started instance is a jumpbox
-      jumpbox_tag = os.environ.get('JUMPBOX_TAG')
-      label_key = next((tag['Key'] for tag in tags if tag['Key'] == jumpbox_tag), None)
-  
-      response = ec2_client.authorize_security_group_ingress(
-        GroupId=remote_sg,  
-        IpPermissions=[
-          {
-            'IpProtocol': 'tcp',
-            'FromPort': 22,
-            'ToPort': 22,
-            'UserIdGroupPairs': [
-              {
-                'GroupId': sg
-              }
-            ]
-          }
-        ]
-      )
-      logger.info("SG Rule added")
+      body_str = record.get('body', '{}')
+      message_body = json.loads(body_str) if isinstance(body_str, str) else body_str
 
+      instance_id = message_body.get('detail', {}).get('instance-id')
+      if not instance_id:
+        LOGGER.warning(f"No instance-id in message {message_id}. Skipping.")
+        continue
+
+      LOGGER.info(f"Processing creation for instance: {instance_id}")
+
+      # Fetch instance data once (tags + security groups)
+      instance_data = get_instance_data(instance_id)
+      if not instance_data:
+        LOGGER.error(f"Instance {instance_id} not found or missing configuration.")
+        continue
+
+      tags = instance_data.get('Tags', [])
+      security_groups = instance_data.get('SecurityGroups', [])
+
+      if not security_groups:
+        LOGGER.error(f"No security groups found for instance {instance_id}.")
+        continue
+
+      jumpbox_sg = security_groups[0]['GroupId']
+
+      # Validate jumpbox tag if required
+      label_key = next((tag['Key'] for tag in tags if tag['Key'] == JUMPBOX_TAG), None)
+      if not label_key:
+        LOGGER.warning(f"Instance {instance_id} is missing required tag '{JUMPBOX_TAG}'. Skipping.")
+        continue
+
+      # Extract requested target resource ARN
+      resource_arn = next((tag['Value'] for tag in tags if tag['Key'] == 'Jumpbox_Resource'), None)
+
+      if not resource_arn or not resources_exist(resource_arn):
+        LOGGER.warning(f"Resource check failed for ARN '{resource_arn}' on instance {instance_id}.")
+        continue
+
+      remote_instance_id = resource_arn.split('/')[-1]
+      remote_data = get_instance_data(remote_instance_id)
+      if not remote_data or not remote_data.get('SecurityGroups'):
+        LOGGER.error(f"Remote instance {remote_instance_id} not found or missing security groups.")
+        continue
+
+      remote_sg = remote_data['SecurityGroups'][0]['GroupId']
+
+      # Authorize Security Group Ingress (handling duplicate rule error gracefully)
+      try:
+        EC2_CLIENT.authorize_security_group_ingress(
+          GroupId=remote_sg,
+          IpPermissions=[
+            {
+              'IpProtocol': 'tcp',
+              'FromPort': 22,
+              'ToPort': 22,
+              'UserIdGroupPairs': [{'GroupId': jumpbox_sg}]
+            }
+          ]
+        )
+        LOGGER.info(f"Ingress rule added: {jumpbox_sg} -> {remote_sg}")
+      except ClientError as e:
+        if e.response['Error']['Code'] == 'InvalidPermission.Duplicate':
+          LOGGER.info(f"Ingress rule already exists: {jumpbox_sg} -> {remote_sg}")
+        else:
+          raise
+
+      # Publish notification to downstream SQS queue
       message_data = {
         "instance_id": instance_id,
         "remote_sg": remote_sg,
-        "jumpbox_sg": sg
+        "jumpbox_sg": jumpbox_sg
       }
 
-      response = sqs_client.send_message(
-        QueueUrl=queue_url,
-        MessageBody = json.dumps(message_data)
+      SQS_CLIENT.send_message(
+        QueueUrl=QUEUE_URL,
+        MessageBody=json.dumps(message_data)
       )
+      LOGGER.info(f"Successfully queued update for instance {instance_id}")
 
-      logger.info("Wrote to Queue")
+    except Exception as err:
+      LOGGER.error(f"Failed processing record {message_id}: {err}", exc_info=True)
+      if message_id:
+        failed_message_ids.append(message_id)
 
-    except Exception as e:
-      error_type = type(e).__name__
-      error_reason = str(e)
+  if failed_message_ids:
+    return {
+      "batchItemFailures": [
+      {"itemIdentifier": msg_id} for msg_id in failed_message_ids
+      ]
+    }
 
-      logger.info(f"Type: {error_type} reason: {error_reason}")
-      return {
-               'statusCode': 500,
-               'body': f'Error adding ingress rule: {str(e)}'
-             }
-  return {
-    'statusCode': 200,
-    'body': json.dumps('Rule added')
-  }
-  
-def resources_exist(ec2_arn) -> bool:
-  try:
-    instance_id = ec2_arn.split(':')[5].split('/')[-1]
-    response = ec2_client.describe_instances(InstanceIds=[instance_id])
-  except Exception:
+  return {"statusCode": 200, "body": json.dumps("Processing complete")}
+
+
+  def get_instance_data(instance_id: str) -> dict:
+    """Helper to safely fetch instance details in a single EC2 call."""
+    try:
+      response = EC2_CLIENT.describe_instances(InstanceIds=[instance_id])
+      reservations = response.get('Reservations', [])
+      if reservations and reservations[0].get('Instances'):
+        return reservations[0]['Instances'][0]
+    except ClientError as e:
+      LOGGER.error(f"EC2 describe_instances failed for {instance_id}: {e}")
+    return {}
+
+
+  def resources_exist(ec2_arn: str) -> bool:
+"""Safely checks if the resource target instance in the ARN exists."""
+  if not isinstance(ec2_arn, str) or not ec2_arn:
     return False
-  return True
+
+  try:
+    parts = ec2_arn.split(':')
+    if len(parts) < 6:
+      return False
+
+    instance_id = parts[5].split('/')[-1]
+    return bool(get_instance_data(instance_id))
+  except Exception as e:
+    LOGGER.warning(f"Error checking resource existence for {ec2_arn}: {e}")
+    return False
