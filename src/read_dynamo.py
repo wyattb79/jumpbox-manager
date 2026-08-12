@@ -47,7 +47,7 @@ def handler(event, context):
       message_data = {
         "instance_id": instance_id,
         "remote_sg": remote_sg,
-        "jumpbox_sg": sg
+        "jumpbox_sg": jumpbox_sg
       }
 
       response = sqs_client.send_message(
