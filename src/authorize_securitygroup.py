@@ -116,20 +116,20 @@ def handler(event, context):
   return {"statusCode": 200, "body": json.dumps("Processing complete")}
 
 
-  def get_instance_data(instance_id: str) -> dict:
-    """Helper to safely fetch instance details in a single EC2 call."""
-    try:
-      response = EC2_CLIENT.describe_instances(InstanceIds=[instance_id])
-      reservations = response.get('Reservations', [])
-      if reservations and reservations[0].get('Instances'):
-        return reservations[0]['Instances'][0]
-    except ClientError as e:
-      LOGGER.error(f"EC2 describe_instances failed for {instance_id}: {e}")
-    return {}
+def get_instance_data(instance_id: str) -> dict:
+  """Helper to safely fetch instance details in a single EC2 call."""
+  try:
+    response = EC2_CLIENT.describe_instances(InstanceIds=[instance_id])
+    reservations = response.get('Reservations', [])
+    if reservations and reservations[0].get('Instances'):
+      return reservations[0]['Instances'][0]
+  except ClientError as e:
+    LOGGER.error(f"EC2 describe_instances failed for {instance_id}: {e}")
+  return {}
 
 
-  def resources_exist(ec2_arn: str) -> bool:
-"""Safely checks if the resource target instance in the ARN exists."""
+def resources_exist(ec2_arn: str) -> bool:
+  """Safely checks if the resource target instance in the ARN exists."""
   if not isinstance(ec2_arn, str) or not ec2_arn:
     return False
 
