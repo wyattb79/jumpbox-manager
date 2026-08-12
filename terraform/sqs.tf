@@ -8,6 +8,11 @@ module "ec2_terminated_queue" {
   queue_name = "ec2_terminated"
 }
 
+module "read_dynamo_queue" {
+  source = "./modules/sqs-queue"
+  queue_name = "read_dynamo"
+}
+
 module "add_dynamo_queue" {
   source = "./modules/sqs-queue"
   queue_name = "add_dynamo"

@@ -12,6 +12,6 @@ module "ec2_terminate_event" {
   rule_name = "ec2-termination"
   rule_description = "Generate event for EC2 terminated"
   ec2_state = "terminated"
-  queue_arn = module.delete_dynamo_queue.queue_arn
+  queue_arn = module.read_dynamo_queue.queue_arn
   target_id = "EC2-terminate" 
 }

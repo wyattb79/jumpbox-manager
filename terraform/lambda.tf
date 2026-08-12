@@ -30,6 +30,16 @@ module "lambda_ec2_terminated" {
   queue_arn = module.ec2_terminated_queue.queue_arn
 }
 
+module "lambda_read_dynamo" {
+  source = "./modules/lambda-function"
+  function_name = "read_dynamo"
+  role = module.lambda_read_dynamo_role.role_arn
+  region = data.aws_region.current.region
+  python_runtime = var.python_runtime
+
+  queue_arn = module.read_dynamo_queue.queue_arn
+}
+
 module "lambda_write_dynamo" {
   source = "./modules/lambda-function"
   function_name = "write_dynamo"

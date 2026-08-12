@@ -14,6 +14,14 @@ module "lambda_revoke_ingress_role" {
   }
 }
 
+module "lambda_read_dynamo_role" {
+  source = "./modules/iam-role"
+  role_name = "lambda_read_dynamo"
+  policy_arns = {
+    "lambda_read_dynamo" = aws_iam_policy.lambda_read_dynamo_policy.arn
+  }
+}
+
 module "lambda_add_dynamo_role" {
   source = "./modules/iam-role"
   role_name = "lambda_add_dynamo"
@@ -98,6 +106,42 @@ resource "aws_iam_policy" "lambda_revoke_ingress_policy" {
           "ec2:DescribeInstances"
         ]
         Resource = "*"
+      },
+    ]
+  })
+}
+
+resource "aws_iam_policy" "lambda_read_dynamo_policy" {
+  name = "lambda-read-dynamo"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes",
+        ]
+        Resource = [ module.read_dynamo_queue.queue_arn ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeInstances"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:Query",
+        ]
+        Resource: [ "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/jumpbox_access",
+        "arn:aws:dynamodb:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/jumpbox_access/index/*"
+        ]
       },
     ]
   })
