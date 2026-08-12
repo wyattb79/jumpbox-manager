@@ -1,67 +1,77 @@
 import json
-import boto3
 import logging
 import os
+import boto3
 from boto3.dynamodb.conditions import Key
 
-region = os.environ.get('REGION')
-dynamodb = boto3.resource("dynamodb", region_name=region)
-sqs_client = boto3.client('sqs')
-TABLE_NAME = 'jumpbox_access'
-table = dynamodb.Table(TABLE_NAME)
+# Initialize AWS SDK clients outside the handler to reuse TCP connections
+REGION = os.environ.get('AWS_REGION')
+DYNAMODB = boto3.resource('dynamodb', region_name=REGION)
+SQS_CLIENT = boto3.client('sqs', region_name=REGION)
 
-logger = logging.getLogger()
-log_level = os.environ.get("LAMBDA_LOG_LEVEL", "INFO").upper()
-logger.setLevel(logging.getLevelName(log_level))
-queue_url = os.environ['SQS_QUEUE_URL']
+TABLE_NAME = os.environ.get('TABLE_NAME', 'jumpbox_access')
+QUEUE_URL = os.environ['SQS_QUEUE_URL']
+TABLE = DYNAMODB.Table(TABLE_NAME)
+
+# Set up logger
+LOGGER = logging.getLogger()
+LOG_LEVEL = os.environ.get('LAMBDA_LOG_LEVEL', 'INFO').upper()
+LOGGER.setLevel(LOG_LEVEL)
 
 def handler(event, context):
+  failed_message_ids = []
 
-  for record in event['Records']:
+  for record in event.get('Records', []):
+    message_id = record.get('messageId')
     try:
-      message_body = json.loads(record.get("body", {}))
-      detail = message_body.get("detail", {})
-      instance_id = detail.get("instance-id")
-      state = detail.get("state")
-  
-      if not instance_id:
-        logger.warning("No instance-id in record.  Skipping")
-        continue
-  
-      logger.debug(f"Instance: {instance_id} now {state}")
-  
-      response = table.query(
-        KeyConditionExpression=Key('InstanceId').eq(f"{instance_id}")
-      )
+      # SQS Record body is a string; handle potential JSON parsing issues
+      body_str = record.get('body', '{}')
+      message_body = json.loads(body_str) if isinstance(body_str, str) else body_str
 
+      detail = message_body.get('detail', {})
+      instance_id = detail.get('instance-id')
+      state = detail.get('state')
+
+      if not instance_id:
+        LOGGER.warning(f"No instance-id found in record {message_id}. Skipping.")
+        continue
+
+      LOGGER.debug(f"Instance: {instance_id} state updated to: {state}")
+
+      # Query DynamoDB for matching records
+      response = TABLE.query(
+        KeyConditionExpression=Key('InstanceId').eq(instance_id)
+      )
       items = response.get('Items', [])
 
       if not items:
-        logger.warning("No items found in Dynamo")
+        LOGGER.warning(f"No DynamoDB items found for InstanceId: {instance_id}")
         continue
 
       item = items[0]
-      remote_sg = item.get("remote_sg")
-      jumpbox_sg = item.get("jumpbox_sg")
-
       message_data = {
         "instance_id": instance_id,
-        "remote_sg": remote_sg,
-        "jumpbox_sg": jumpbox_sg
+        "remote_sg": item.get("remote_sg"),
+        "jumpbox_sg": item.get("jumpbox_sg")
       }
 
-      response = sqs_client.send_message(
-        QueueUrl=queue_url,
-        MessageBody = json.dumps(message_data)
+      # Forward structured message to target SQS Queue
+      SQS_CLIENT.send_message(
+        QueueUrl=QUEUE_URL,
+        MessageBody=json.dumps(message_data)
       )
 
-    except Exception as e:
-      return {
-        'statusCode': 500,
-        'body': ''
-      }
+    except Exception as err:
+      LOGGER.error(f"Failed processing record {message_id}: {err}", exc_info=True)
+      if message_id:
+        failed_message_ids.append(message_id)
 
-  return {
-    'statusCode': 200,
-    'body': ''
-  }
+  # If processing SQS events in Lambda, return partial batch failures to avoid retrying successful items
+  if failed_message_ids:
+    return {
+      "batchItemFailures": [
+        {"itemIdentifier": msg_id} for msg_id in failed_message_ids
+      ]
+    }
+
+    return {"statusCode": 200, "body": json.dumps("Processing complete")}
