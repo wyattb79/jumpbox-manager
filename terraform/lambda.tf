@@ -1,4 +1,4 @@
-module "lambda_ec2_started" {
+module "lambda_authorize_securitygroup" {
   source = "./modules/lambda-function"
   function_name = "authorize_securitygroup"
   role = module.lambda_add_ingress_role.role_arn
@@ -14,7 +14,7 @@ module "lambda_ec2_started" {
   queue_arn = module.ec2_started_queue.queue_arn
 }
 
-module "lambda_ec2_terminated" {
+module "lambda_revoke_securitygroup" {
   source = "./modules/lambda-function"
   function_name = "revoke_securitygroup"
   role = module.lambda_revoke_ingress_role.role_arn
@@ -27,7 +27,7 @@ module "lambda_ec2_terminated" {
     SQS_QUEUE_URL = module.delete_dynamo_queue.queue_id
   }
 
-  queue_arn = module.ec2_terminated_queue.queue_arn
+  queue_arn = module.read_dynamo_queue.queue_arn
 }
 
 module "lambda_read_dynamo" {
@@ -37,7 +37,12 @@ module "lambda_read_dynamo" {
   region = data.aws_region.current.region
   python_runtime = var.python_runtime
 
-  queue_arn = module.read_dynamo_queue.queue_arn
+  lambda_env_vars = {
+    REGION = data.aws_region.current.region
+    SQS_QUEUE_URL = module.read_dynamo_queue.queue_id
+  }
+
+  queue_arn = module.ec2_started_queue.queue_arn
 }
 
 module "lambda_write_dynamo" {
