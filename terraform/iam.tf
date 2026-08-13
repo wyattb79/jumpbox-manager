@@ -91,7 +91,7 @@ resource "aws_iam_policy" "lambda_revoke_ingress_policy" {
           "sqs:DeleteMessage",
           "sqs:GetQueueAttributes",
         ]
-        Resource = [ module.ec2_terminated_queue.queue_arn ]
+        Resource = [ module.read_dynamo_queue.queue_arn ]
       },
       {
         Effect = "Allow"
@@ -124,7 +124,7 @@ resource "aws_iam_policy" "lambda_read_dynamo_policy" {
           "sqs:DeleteMessage",
           "sqs:GetQueueAttributes",
         ]
-        Resource = [ module.read_dynamo_queue.queue_arn ]
+        Resource = [ module.ec2_terminated_queue.queue_arn ]
       },
       {
         Effect = "Allow"

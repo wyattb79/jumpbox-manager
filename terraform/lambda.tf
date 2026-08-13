@@ -42,7 +42,7 @@ module "lambda_read_dynamo" {
     SQS_QUEUE_URL = module.read_dynamo_queue.queue_id
   }
 
-  queue_arn = module.ec2_started_queue.queue_arn
+  queue_arn = module.ec2_terminated_queue.queue_arn
 }
 
 module "lambda_write_dynamo" {
