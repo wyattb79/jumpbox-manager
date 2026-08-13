@@ -41,6 +41,18 @@ def handler(event, context):
       TABLE.put_item(Item=dynamo_row)
       LOGGER.info(f"Successfully wrote record for instance {instance_id} to DynamoDB")
 
+      # Publish notification to downstream SQS queue
+      message_data = {
+        "remote_sg": remote_sg,
+        "jumpbox_sg": jumpbox_sg
+      }
+
+      SQS_CLIENT.send_message(
+        QueueUrl=QUEUE_URL,
+        MessageBody=json.dumps(message_data)
+      )
+      LOGGER.info(f"Successfully queued update for security-group {jumpbox_sg}")
+
     except Exception as err:
       LOGGER.error(f"Failed to write record {message_id} to DynamoDB: {err}", exc_info=True)
       if message_id:
