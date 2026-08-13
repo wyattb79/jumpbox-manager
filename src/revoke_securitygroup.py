@@ -15,8 +15,8 @@ def handler(event, context):
 
   for record in event['Records']:
     message_body = json.loads(record['body'])
-    remote_sg = body.get('remote_sg')
-    jumpbox_sg = body.get('jumpbox_sg')
+    remote_sg = message_body.get('remote_sg')
+    jumpbox_sg = message_body.get('jumpbox_sg')
 
     try:
       response = ec2_client.revoke_security_group_ingress(
