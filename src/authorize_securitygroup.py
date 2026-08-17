@@ -13,8 +13,7 @@ JUMPBOX_TAG = os.environ.get('JUMPBOX_TAG', 'Jumpbox')
 
 LOGGER = logging.getLogger()
 LOG_LEVEL = os.environ.get("LAMBDA_LOG_LEVEL", "INFO").upper()
-LOGGER.setLevel(LOG_LEVEL)
-
+LOGGER.setLevel(logging.getLevelName(LOG_LEVEL))
 
 def handler(event, context):
   failed_message_ids = []
@@ -45,8 +44,11 @@ def handler(event, context):
         LOGGER.error(f"No security groups found for instance {instance_id}.")
         continue
 
-      jumpbox_sg = security_groups[0]['GroupId']
-
+      jumpbox_sg = security_groups[0].get('GroupId')
+      if not jumpbox_sg:
+        LOGGER.error(f"Security group missing GroupId key for instance {instance_id}.")
+        continue
+        
       # Validate jumpbox tag if required
       label_key = next((tag['Key'] for tag in tags if tag['Key'] == JUMPBOX_TAG), None)
       if not label_key:
@@ -66,8 +68,11 @@ def handler(event, context):
         LOGGER.error(f"Remote instance {remote_instance_id} not found or missing security groups.")
         continue
 
-      remote_sg = remote_data['SecurityGroups'][0]['GroupId']
-
+      remote_sg = remote_sgs[0].get('GroupId')
+      if not remote_sg:
+        LOGGER.error(f"Remote security group missing GroupId key for instance {remote_instance_id}.")
+        continue
+        
       # Authorize Security Group Ingress (handling duplicate rule error gracefully)
       try:
         EC2_CLIENT.authorize_security_group_ingress(
@@ -106,15 +111,11 @@ def handler(event, context):
       if message_id:
         failed_message_ids.append(message_id)
 
-  if failed_message_ids:
-    return {
-      "batchItemFailures": [
+  return {
+    "batchItemFailures": [
       {"itemIdentifier": msg_id} for msg_id in failed_message_ids
-      ]
-    }
-
-  return {"statusCode": 200, "body": json.dumps("Processing complete")}
-
+    ]
+  }
 
 def get_instance_data(instance_id: str) -> dict:
   """Helper to safely fetch instance details in a single EC2 call."""
