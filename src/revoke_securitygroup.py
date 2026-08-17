@@ -21,7 +21,6 @@ def handler(event, context):
             body_str = record.get('body', '{}')
             message_body = json.loads(body_str) if isinstance(body_str, str) else body_str
 
-            # ✅ Variable names fixed
             remote_sg = message_body.get('remote_sg')
             jumpbox_sg = message_body.get('jumpbox_sg')
 
