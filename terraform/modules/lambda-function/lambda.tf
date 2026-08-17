@@ -23,5 +23,6 @@ resource "aws_lambda_event_source_mapping" "this" {
   function_name = aws_lambda_function.this.arn
   batch_size = 1
   enabled = true
-}
 
+  function_response_types = ["ReportBatchItemFailures"]
+}
