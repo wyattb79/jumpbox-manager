@@ -68,7 +68,12 @@ def handler(event, context):
         LOGGER.error(f"Remote instance {remote_instance_id} not found or missing security groups.")
         continue
 
-      remote_sg = remote_sgs[0].get('GroupId')
+      remote_sgs_list = remote_data.get('SecurityGroups', [])
+      if not remote_sgs_list:
+        LOGGER.error(f"Remote instance {remote_instance_id} has an empty SecurityGroups list.")
+        continue
+
+      remote_sg = remote_sgs_list[0].get('GroupId')
       if not remote_sg:
         LOGGER.error(f"Remote security group missing GroupId key for instance {remote_instance_id}.")
         continue
